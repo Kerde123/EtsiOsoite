@@ -1,5 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View, TextInput, Alert, Button } from 'react-native';
+import { StyleSheet, View, TextInput, Alert, Button, Keyboard } from 'react-native';
 import { API_TOKEN } from '@env';
 import MapView, { Marker } from 'react-native-maps';
 import { useEffect, useState } from 'react';
@@ -14,58 +14,71 @@ import { useEffect, useState } from 'react';
 
 export default function App() {
 
-  const [osoite, setOsoite] = useState('');
-  const [coordinates, setCoordinates] = useState({});
+  const initial = {
+        latitude: 60.15524,
+        longitude: 24.9117114,
+        latitudeDelta: 0.0322,
+        longitudeDelta: 0.0221
+  };
 
+  const [region, setRegion] = useState(initial);
+  const [osoite, setOsoite] = useState('');
       
-  const getCoordinates = () => {
-      fetch(`http://www.mapquestapi.com/geocoding/v1/address?key=${API_TOKEN}&location=${osoite}`)
+  const fetchCoordinates = async (osoite) => {
+      const KEY = API_TOKEN
+      const url = `http://www.mapquestapi.com/geocoding/v1/address?key=${KEY}&location=${osoite}`;
+
+      try {
+        const response = await fetch(url);
+        const data = await response.json();
+
+        const lat = data.results[0].locations[0].latLng.lat;
+        const lng = data.results[0].locations[0].latLng.lng;
+
+        console.log(lat, lng);
+        setRegion({ ...region, latitude: lat, longitude: lng})
+      } catch (error) {
+        console.error('API call failed. Did you provide a valid API key?', error.message);
+        }
+        Keyboard.dismiss();
+        }
+
+    /*
+    VAIHTOEHTOINEN
+
+    const fetchCoordinates = (address) => {
+      const KEY = API_TOKEN
+      const url = `http://www.mapquestapi.com/geocoding/v1/address?key=${KEY}&location=${osoite}`;
+
+      fetch(url)
       .then(response => response.json())
-      .then(responseJson => setCoordinates(responseJson.results[0].locations.latLng))
-      .catch(error => { 
-        Alert.alert('Error', error.message); 
-      });  
-      console.log(Object.keys(coordinates)); 
-      } 
+      .then(data => {
+        console.log(data);
+        const lat = data.results[0].locations[0].latLng.lat;
+        const lng = data.results[0].locations[0].latLng.lng;
+        setRegion({ ...region, latitude: lat, longitude: lng})
+      })
+      .catch(error => console.error('API call failed. Did you provide a valid API key?', error.message))
+      }
+     */
 
 
   return (
     <View style={styles.container}>
       <MapView
         style={{ width: '100%', height: '90%' }}
-        initialRegion={{
-          latitude: 60.15524,
-          longitude: 24.9117114,
-          latitudeDelta: 0.0322,
-          longitudeDelta: 0.0221
-        }}>
+        region={region}
+        >
+        <Marker coordinate={region} />
       </MapView>
       <TextInput
         placeholder={'Osoite'}
         value={osoite}
-        onChangeText={text => setOsoite(text)}
+        onChangeText= {text => setOsoite(text)}
         />
         <Button 
-      title = "Show" 
-      onPress = {getCoordinates} 
-        />
-  
-        <MapView 
-            style={{ width: '100%', height: '100%' }}
-            region= {{
-              latitude: coordinates[0],
-              longitude: coordinates[1],
-              latitudeDelta: 0.0322,
-              longitudeDelta: 0.0221
-            }}
-            >
-            <Marker 
-              coordinate={{
-              latitude: coordinates[0],
-              longitude: coordinates[1]
-              }}
-              />
-          </MapView> 
+          title = "Show" 
+          onPress = {() => fetchCoordinates(osoite)} />
         </View>
   );
 }
